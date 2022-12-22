@@ -1,0 +1,49 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: test_mindbox
+spec:
+  replicas: 5               # 5 репликаций для отказаустойчивости
+  selector:
+    matchLabels:
+      app: my-nginx			# Предположительно что наш вэб сервис на njinx
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate		# обновление по порядку не удаляя старых нод, есть требуется
+  template:
+    metadata:
+      labels:
+        app: my-nginx
+    spec:
+      containers:
+      - image: nginx:1.16
+        name: nginx
+        ports:
+        - containerPort: 80
+		readinessProbe:    
+          failureThreshold: 5  # далее идут пробы работы, 1 гет запрос, и есть 2 из 5 удачны то все норм. 2 делает тотже запрос но постоянно а не после запуска.
+          httpGet:
+            path: /
+            port: 80
+          periodSeconds: 10
+          successThreshold: 2
+          timeoutSeconds: 3
+        livenessProbe:
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 80
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+          initialDelaySeconds: 10
+		resources:
+          requests:                    # тут мы прописыввем лимит миниманых ресурсов которе нужно оставить на ноде чтобы новая репликация на нее не переехала.
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 300m
+            memory: 512Mi
